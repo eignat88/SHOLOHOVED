@@ -677,12 +677,26 @@ class WordSearchFrame(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
         self.result_text.config(yscrollcommand=scrollbar.set)
         
+        # Фрейм для кнопок управления результатами
+        buttons_frame = ttk.Frame(result_frame)
+        buttons_frame.pack(fill="x", padx=5, pady=5)
+        
         # Кнопка копирования результатов
         self.copy_button = ttk.Button(
-            result_frame, text="Копировать результаты", 
+            buttons_frame, text="Копировать результаты", 
             command=self.copy_results
         )
-        self.copy_button.pack(pady=5)
+        self.copy_button.pack(side=tk.LEFT, padx=5)
+        
+        # Кнопка сохранения результатов в файл
+        self.save_button = ttk.Button(
+            buttons_frame, text="Сохранить в файл", 
+            command=self.save_results
+        )
+        self.save_button.pack(side=tk.LEFT, padx=5)
+        
+        # Инициализируем список найденных слов
+        self.found_words = []
         
         # Делаем колонки растягиваемыми
         file_frame.columnconfigure(0, weight=1)
@@ -739,14 +753,23 @@ class WordSearchFrame(ttk.Frame):
                     # Разделяем строку на слова
                     words = line.split()
                     for word in words:
-                        # Проверяем, содержит ли слово искомую часть
-                        if search_word in word.lower():
-                            # Добавляем найденное слово в список
+                        # Очищаем слово от кавычек и других символов для поиска
+                        clean_word = word
+                        # Удаляем кавычки и другую пунктуацию
+                        for char in '"\'",.;:!?…()[]{}':
+                            clean_word = clean_word.replace(char, '')
+                            
+                        # Проверяем, содержит ли слово искомую часть (без учета кавычек)
+                        if search_word in clean_word.lower():
+                            # Добавляем исходное (неочищенное) слово в список
                             found_words.append(word)
             
             # Убираем дубликаты и сортируем список
             found_words = list(set(found_words))
             found_words.sort()
+            
+            # Сохраняем найденные слова для возможного сохранения в файл
+            self.found_words = found_words
             
             # Форматируем и выводим результаты
             self.after(100, lambda: self.display_search_results(found_words))
@@ -793,6 +816,32 @@ class WordSearchFrame(ttk.Frame):
         self.clipboard_clear()
         self.clipboard_append(result_text)
         messagebox.showinfo("Копирование", "Результаты скопированы в буфер обмена")
+        
+    def save_results(self):
+        """Сохраняет результаты поиска в файл без кавычек"""
+        if not self.found_words:
+            messagebox.showinfo("Информация", "Нет результатов для сохранения.")
+            return
+            
+        # Открываем диалог сохранения файла
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")]
+        )
+        
+        if not file_path:
+            return
+            
+        try:
+            # Сохраняем найденные слова в файл, по одному слову на строку, без кавычек
+            with open(file_path, 'w', encoding='utf-8') as f:
+                for word in self.found_words:
+                    f.write(word + '\n')
+                    
+            messagebox.showinfo("Сохранение", f"Результаты успешно сохранены в файл:\n{file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить результаты: {str(e)}")
 
 
 class ColorAnalysisFrame(ttk.Frame):
@@ -924,23 +973,29 @@ class ColorAnalysisFrame(ttk.Frame):
             
             for sentence in tqdm(sentences, desc='Поиск'):
                 for color in colors:
-                    if re.search(r'\b{}\b'.format(color), sentence, re.IGNORECASE):
-                        sentence_words = sentence.strip().split()
-                        formatted_sentence = ""
-                        word_count = 0
-                        
-                        for word in sentence_words:
-                            if word_count + len(word.split('\n')) <= 20:
-                                formatted_sentence += word + " "
-                                word_count += len(word.split('\n'))
-                            else:
+                    # Экранируем специальные символы для безопасного использования в регулярном выражении
+                    escaped_color = re.escape(color)
+                    try:
+                        if re.search(r'\b{}\b'.format(escaped_color), sentence, re.IGNORECASE):
+                            sentence_words = sentence.strip().split()
+                            formatted_sentence = ""
+                            word_count = 0
+                            
+                            for word in sentence_words:
+                                if word_count + len(word.split('\n')) <= 20:
+                                    formatted_sentence += word + " "
+                                    word_count += len(word.split('\n'))
+                                else:
+                                    sentences_with_colors.append(formatted_sentence.strip() + '.')
+                                    formatted_sentence = word + " "
+                                    word_count = len(word.split('\n'))
+                                    
+                            if formatted_sentence.strip():
                                 sentences_with_colors.append(formatted_sentence.strip() + '.')
-                                formatted_sentence = word + " "
-                                word_count = len(word.split('\n'))
-                                
-                        if formatted_sentence.strip():
-                            sentences_with_colors.append(formatted_sentence.strip() + '.')
-                        break
+                            break
+                    except Exception as regex_error:
+                        self.update_status(f"Ошибка в обработке слова '{color}': {str(regex_error)}")
+                        continue
             
             # Extracting file names without extensions
             text_filename_without_ext = os.path.splitext(os.path.basename(text_filename))[0]
