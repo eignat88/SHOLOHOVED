@@ -8,176 +8,165 @@ from tqdm import tqdm
 class WordSearchFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        
-        # Создаем элементы интерфейса поиска слов
+        self.last_found_words = []
         self.create_widgets()
-    
+
     def create_widgets(self):
-        # Фрейм для выбора файла
         file_frame = ttk.LabelFrame(self, text="Выбор файла")
         file_frame.pack(fill="x", padx=10, pady=10, expand=False)
-        
-        # Поле для отображения выбранного файла
+
         self.file_var = tk.StringVar()
         self.file_entry = ttk.Entry(file_frame, textvariable=self.file_var, width=60)
         self.file_entry.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        
-        # Кнопка для выбора файла
+
         self.browse_button = ttk.Button(file_frame, text="Обзор", command=self.browse_file)
         self.browse_button.grid(row=0, column=1, padx=5, pady=5)
-        
-        # Фрейм для ввода слова поиска
+
         search_frame = ttk.LabelFrame(self, text="Поиск")
         search_frame.pack(fill="x", padx=10, pady=10, expand=False)
-        
-        ttk.Label(search_frame, text="Введите слово или его часть для поиска:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        
+
+        ttk.Label(search_frame, text="Введите слово или его часть для поиска:").grid(
+            row=0, column=0, padx=5, pady=5, sticky="w"
+        )
+
         self.search_var = tk.StringVar()
         self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=40)
         self.search_entry.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
-        
-        # Кнопка для запуска поиска
-        self.search_button = ttk.Button(
-            search_frame, text="Найти", 
-            command=self.start_search
-        )
+
+        self.search_button = ttk.Button(search_frame, text="Найти", command=self.start_search)
         self.search_button.grid(row=1, column=1, padx=5, pady=5)
-        
-        # Кнопка сброса
-        self.clear_button = ttk.Button(
-            search_frame, text="Сброс", 
-            command=self.clear_search
-        )
+
+        self.clear_button = ttk.Button(search_frame, text="Сброс", command=self.clear_search)
         self.clear_button.grid(row=1, column=2, padx=5, pady=5)
-        
-        # Результаты поиска
+
         result_frame = ttk.LabelFrame(self, text="Результаты поиска")
         result_frame.pack(fill="both", padx=10, pady=10, expand=True)
-        
+
         self.result_text = tk.Text(result_frame, wrap="word", height=10)
         self.result_text.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Scrollbar для текста результатов
+
         scrollbar = ttk.Scrollbar(self.result_text, command=self.result_text.yview)
         scrollbar.pack(side="right", fill="y")
         self.result_text.config(yscrollcommand=scrollbar.set)
-        
-        # Кнопка копирования результатов
-        self.copy_button = ttk.Button(
-            result_frame, text="Копировать результаты", 
-            command=self.copy_results
-        )
+
+        self.copy_button = ttk.Button(result_frame, text="Копировать результаты", command=self.copy_results)
         self.copy_button.pack(pady=5)
-        
-        # Делаем колонки растягиваемыми
+
+        self.save_button = ttk.Button(
+            result_frame, text="Сохранить результаты", command=self.save_results, state="disabled"
+        )
+        self.save_button.pack(pady=5)
+
         file_frame.columnconfigure(0, weight=1)
         search_frame.columnconfigure(0, weight=1)
-    
+
     def browse_file(self):
-        """Открывает диалог выбора файла"""
         filetypes = [("Text files", "*.txt")]
-        
         filename = filedialog.askopenfilename(filetypes=filetypes)
         if filename:
             self.file_var.set(filename)
-    
+
     def start_search(self):
-        """Запускает поиск слов в отдельном потоке"""
         file_path = self.file_var.get()
         search_word = self.search_var.get().lower()
-        
+
         if not file_path:
             messagebox.showerror("Ошибка", "Выберите файл для поиска!")
             return
-        
         if not search_word:
             messagebox.showerror("Ошибка", "Введите слово для поиска!")
             return
-        
-        # Проверяем существование файла
         if not os.path.exists(file_path):
             messagebox.showerror("Ошибка", "Указанный файл не существует!")
             return
-        
-        # Очищаем результаты
+
         self.result_text.delete(1.0, tk.END)
         self.result_text.insert(tk.END, "Выполняется поиск...\n")
-        
-        # Запускаем поиск в отдельном потоке
-        search_thread = threading.Thread(
-            target=self.perform_search,
-            args=(file_path, search_word)
-        )
+        self.save_button.config(state="disabled")
+        self.last_found_words = []
+
+        search_thread = threading.Thread(target=self.perform_search, args=(file_path, search_word))
         search_thread.daemon = True
         search_thread.start()
-    
+
     def perform_search(self, file_path, search_word):
-        """Выполняет поиск слов в файле"""
         try:
-            # Создаем пустой список для хранения найденных слов
             found_words = []
-            
-            # Открываем выбранный файл для чтения
-            with open(file_path, 'r', encoding='utf-8') as file:
-                # Прочитываем файл построчно
+
+            with open(file_path, "r", encoding="utf-8") as file:
                 for line in file:
-                    # Разделяем строку на слова
-                    words = line.split()
-                    for word in words:
-                        # Проверяем, содержит ли слово искомую часть
+                    for word in line.split():
                         if search_word in word.lower():
-                            # Добавляем найденное слово в список
                             found_words.append(word)
-            
-            # Убираем дубликаты и сортируем список
-            found_words = list(set(found_words))
-            found_words.sort()
-            
-            # Форматируем и выводим результаты
+
+            found_words = sorted(set(found_words))
             self.after(100, lambda: self.display_search_results(found_words))
-            
+
         except Exception as e:
-            # Обрабатываем ошибки
             error_message = f"Ошибка при поиске: {str(e)}"
             self.after(100, lambda: self.result_text.delete(1.0, tk.END))
             self.after(100, lambda: self.result_text.insert(tk.END, error_message))
-    
+
     def display_search_results(self, found_words):
-        """Отображает результаты поиска"""
         self.result_text.delete(1.0, tk.END)
-        
+        self.last_found_words = found_words
+
         if found_words:
-            # Форматируем список найденных слов
             formatted_results = self.format_results(found_words)
-            self.result_text.insert(tk.END, f'Найденные слова:\n{formatted_results}')
+            self.result_text.insert(tk.END, f"Найденные слова:\n{formatted_results}")
+            self.save_button.config(state="normal")
         else:
             self.result_text.insert(tk.END, "Слово не найдено.")
-    
+            self.save_button.config(state="disabled")
+
     def format_results(self, words):
-        """Форматирует список найденных слов"""
-        # Форматируем список найденных слов так, чтобы не более 5 слов было в строке, каждое слово в кавычках
-        formatted_results = []
-        temp = []
-        for word in words:
-            temp.append(f'"{word}"')
-            if len(temp) == 5:
-                formatted_results.append(", ".join(temp))
-                temp = []
-        if temp:
-            formatted_results.append(", ".join(temp))
-        return "\n".join(formatted_results)
-    
+        return "\n".join(words)
+
     def clear_search(self):
-        """Очищает поля поиска и результаты"""
         self.search_var.set("")
         self.result_text.delete(1.0, tk.END)
-    
+        self.last_found_words = []
+        self.save_button.config(state="disabled")
+
     def copy_results(self):
-        """Копирует результаты поиска в буфер обмена"""
         result_text = self.result_text.get(1.0, tk.END)
         self.clipboard_clear()
         self.clipboard_append(result_text)
         messagebox.showinfo("Копирование", "Результаты скопированы в буфер обмена")
+
+    def save_results(self):
+        if not self.last_found_words:
+            messagebox.showinfo("Сохранение", "Нет результатов для сохранения.")
+            return
+
+        source_path = self.file_var.get()
+        if not source_path or not os.path.exists(source_path):
+            messagebox.showerror("Ошибка", "Исходный файл не найден.")
+            return
+
+        out_dir = os.path.dirname(source_path)
+        first_word = self.last_found_words[0]
+
+        safe_name = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", first_word).strip()
+        if not safe_name:
+            safe_name = "results"
+
+        out_path = os.path.join(out_dir, f"{safe_name}.txt")
+
+        # чтобы не перезатирать — добавим суффикс _2, _3...
+        base, ext = os.path.splitext(out_path)
+        i = 2
+        while os.path.exists(out_path):
+            out_path = f"{base}_{i}{ext}"
+            i += 1
+
+        try:
+            with open(out_path, "w", encoding="utf-8") as f:
+                for w in self.last_found_words:
+                    f.write(w + "\n")
+            messagebox.showinfo("Сохранение", f"Результаты сохранены:\n{out_path}")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить файл:\n{e}")
 
 
 class ColorAnalysisFrame(ttk.Frame):
