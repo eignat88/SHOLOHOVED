@@ -12,6 +12,7 @@ from modules.reading_time import ReadingTimeTab
 from modules.docx_converter import DocxConverterTab
 from modules.text_analyzer import TextAnalyzerTab
 from modules.text_splitter import TextSplitterTab
+from modules.text_statistics import TextStatisticsTab
 
 class MultiTextApp(tk.Tk):
     def __init__(self):
@@ -40,6 +41,10 @@ class MultiTextApp(tk.Tk):
         self.text_splitter_tab = TextSplitterTab(self.notebook)
         self.notebook.add(self.text_splitter_tab, text="Разделение текста")
         
+        # Вкладка статистического анализа текста
+        self.text_statistics_tab = TextStatisticsTab(self.notebook)
+        self.notebook.add(self.text_statistics_tab, text="Статистика текста")
+
         # Создаем строку состояния
         self.status_var = tk.StringVar()
         self.status_var.set("Готово")
