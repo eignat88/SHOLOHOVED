@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import os
 import threading
 import re
+from modules.platform_open import open_folder
 
 class TextSplitterTab(ttk.Frame):
     def __init__(self, parent):
@@ -204,8 +205,8 @@ class TextSplitterTab(ttk.Frame):
         
         if messagebox.askyesno("Разделение завершено", 
                               "Разделение завершено успешно. Открыть папку с результатами?"):
-            # Открываем папку в проводнике
-            os.system(f'explorer "{os.path.dirname(saved_files[0])}"')
+            # Открываем папку в файловом менеджере
+            open_folder(os.path.dirname(saved_files[0]))
     
     def update_status(self, message):
         """Обновляет текстовое поле статуса"""

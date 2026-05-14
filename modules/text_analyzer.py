@@ -4,6 +4,7 @@ import os
 import re
 import threading
 from tqdm import tqdm
+from modules.platform_open import open_file
 
 class WordSearchFrame(ttk.Frame):
     def __init__(self, parent):
@@ -349,8 +350,8 @@ class ColorAnalysisFrame(ttk.Frame):
         
         if messagebox.askyesno("Анализ завершен", 
                               "Анализ завершен успешно. Открыть результаты?"):
-            # Открываем файл в блокноте
-            os.system(f'notepad.exe "{output_file}"')
+            # Открываем файл в программе по умолчанию
+            open_file(output_file)
     
     def update_status(self, message):
         """Обновляет текстовое поле статуса"""

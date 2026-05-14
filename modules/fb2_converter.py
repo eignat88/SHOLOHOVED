@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import os
 import threading
 import nltk
+from modules.platform_open import open_file
 from bs4 import BeautifulSoup
 
 class FB2ConverterTab(ttk.Frame):
@@ -133,9 +134,8 @@ class FB2ConverterTab(ttk.Frame):
         
         if messagebox.askyesno("Конвертация завершена", 
                                "Конвертация завершена успешно. Открыть файл?"):
-            # Открытие файла в браузере или программе по умолчанию
-            output_file_url = f'file:///{os.path.normpath(os.path.abspath(output_file)).replace(os.sep, "/")}'
-            os.system(f'start "" "{output_file_url}"')
+            # Открытие файла в программе по умолчанию
+            open_file(output_file)
     
     def update_status(self, message):
         """Обновляет текстовое поле статуса"""
