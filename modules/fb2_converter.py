@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import re
 import threading
-import nltk
 from modules.platform_open import open_file
 from bs4 import BeautifulSoup
 
@@ -147,74 +147,101 @@ class FB2ConverterTab(ttk.Frame):
         self.after(0, lambda message=message: self.update_status(message))
     
     def txt_to_fb2(self, txt_file_path):
-        """Конвертирует TXT файл в FB2 формат"""
+        """Конвертирует TXT файл в FB2 формат, сохраняя абзацы исходного текста."""
         self.post_status("Чтение текстового файла...")
-        
+
         # Чтение текстового файла
         with open(txt_file_path, "r", encoding="utf-8") as f:
             text = f.read()
-        
-        # Токенизация текста
+
         self.post_status("Обработка текста...")
-        tokens = nltk.word_tokenize(text)
-        
-        lines = []
-        current_line = []
-        for token in tokens:
-            current_line.append(token)
-            if len(current_line) >= 25:
-                lines.append(' '.join(current_line))
-                current_line = []
-        
-        if current_line:
-            lines.append(' '.join(current_line))
-        
+
+        # Делим TXT на блоки по пустым строкам или группам переносов, не нарезая
+        # текст на искусственные фрагменты фиксированной длины. Внутри абзаца
+        # одиночные переносы заменяем пробелами, чтобы сохранить исходный абзац
+        # одним FB2-тегом <p>.
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        raw_blocks = re.split(r"\n(?:[ \t]*\n)+", text)
+        blocks = []
+        for raw_block in raw_blocks:
+            source_lines = [line.strip() for line in raw_block.split("\n") if line.strip()]
+            block_text = " ".join(source_lines).strip()
+            if not block_text:
+                continue
+
+            # Базово распознаем заголовки: короткая отдельная строка без
+            # завершающей пунктуации, отделенная от следующего блока пустой строкой.
+            is_short_heading = (
+                len(source_lines) == 1
+                and len(block_text) <= 80
+                and len(block_text.split()) <= 8
+                and not block_text.endswith((".", ",", ";", ":"))
+            )
+            blocks.append({"text": block_text, "is_heading": is_short_heading})
+
         # Получаем имя файла без расширения
         file_name = os.path.splitext(os.path.basename(txt_file_path))[0]
-        
+
         # Формируем имя выходного файла
         output_file_name = f"{file_name}_formatted.fb2"
-        
+
         # Генерация FB2 файла через BeautifulSoup
         self.post_status("Создание FB2 файла...")
-        
+
         soup = BeautifulSoup(features='xml')
         soup.append(soup.new_tag("FictionBook", xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"))
         fiction_book = soup.FictionBook
-        
+
         # Метаданные
         description = soup.new_tag("description")
         title_info = soup.new_tag("title-info")
-        
+
         book_title = soup.new_tag("book-title")
         book_title.string = file_name
         title_info.append(book_title)
-        
+
         author = soup.new_tag("author")
         author_name = soup.new_tag("first-name")
         author_name.string = "Автор"
         author.append(author_name)
         title_info.append(author)
-        
+
         description.append(title_info)
         fiction_book.append(description)
-        
+
         # Тело документа
         body = soup.new_tag("body")
         section = soup.new_tag("section")
-        
-        for line in lines:
+
+        for index, block in enumerate(blocks):
+            block_text = block["text"]
+            has_next_block = index + 1 < len(blocks)
+
+            if block["is_heading"] and has_next_block:
+                if section.contents:
+                    body.append(section)
+                    section = soup.new_tag("section")
+
+                title = soup.new_tag("title")
+                title_p = soup.new_tag("p")
+                title_p.string = block_text
+                title.append(title_p)
+                section.append(title)
+                continue
+
             p = soup.new_tag("p")
-            p.string = line
+            p.string = block_text
             section.append(p)
-        
-        body.append(section)
+
+        if section.contents or not body.contents:
+            body.append(section)
+
         fiction_book.append(body)
-        
+
         # Сохраняем результат в FB2
         with open(output_file_name, 'w', encoding='utf-8') as file:
             file.write(str(soup))
-        
+
         self.post_status(f"FB2 файл сохранен как '{output_file_name}'")
         return output_file_name
     
