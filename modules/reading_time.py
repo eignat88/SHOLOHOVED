@@ -129,14 +129,18 @@ class ReadingTimeTab(ttk.Frame):
             seconds = int((reading_time_minutes - minutes) * 60)
             
             # Обновляем интерфейс в основном потоке
-            self.after(100, lambda: self.update_results(num_words, minutes, seconds))
+            self.after(0, lambda: self.update_results(num_words, minutes, seconds))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка при расчете: {str(e)}"
-            self.after(100, lambda: messagebox.showerror("Ошибка", error_message))
-            self.after(100, lambda: self.progress.stop())
+            self.after(0, lambda: self.show_calculation_error(error_message))
     
+    def show_calculation_error(self, error_message):
+        """Показывает ошибку расчета в главном потоке Tkinter."""
+        messagebox.showerror("Ошибка", error_message)
+        self.progress.stop()
+
     def update_results(self, num_words, minutes, seconds):
         """Обновляет отображение результатов"""
         self.progress.stop()

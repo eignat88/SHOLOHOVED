@@ -244,19 +244,20 @@ class FrequencyAnalysisFrame(ttk.Frame):
                 percent = (count / total_words) * 100
                 results.append((word, count, percent))
             
-            # Сохраняем результаты для использования в других методах
-            self.analysis_results = results
-            
             # Обновляем интерфейс в основном потоке
-            self.after(100, lambda: self.update_results(results, total_words))
+            self.after(0, lambda: self.update_results(results, total_words))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка при анализе: {str(e)}"
-            self.after(100, lambda: messagebox.showerror("Ошибка", error_message))
-            self.after(100, lambda: self.progress.stop())
-            self.after(100, lambda: self.analyze_button.config(state=tk.NORMAL))
+            self.after(0, lambda: self.show_analysis_error(error_message))
     
+    def show_analysis_error(self, error_message):
+        """Показывает ошибку анализа в главном потоке Tkinter."""
+        messagebox.showerror("Ошибка", error_message)
+        self.progress.stop()
+        self.analyze_button.config(state=tk.NORMAL)
+
     def update_results(self, results, total_words):
         """Обновляет отображение результатов анализа"""
         # Останавливаем прогресс-бар
@@ -265,6 +266,9 @@ class FrequencyAnalysisFrame(ttk.Frame):
         # Разблокируем кнопку анализа
         self.analyze_button.config(state=tk.NORMAL)
         
+        # Сохраняем результаты для использования в других методах
+        self.analysis_results = results
+
         # Добавляем данные в таблицу
         for word, count, percent in results:
             self.results_tree.insert("", "end", values=(word, count, f"{percent:.2f}%"))
@@ -555,21 +559,25 @@ class WordCloudFrame(ttk.Frame):
                 font_path=None  # WordCloud автоматически выберет подходящий шрифт
             ).generate(text)
             
-            # Сохраняем созданное облако слов
-            self.wordcloud_image = wordcloud
-            
             # Обновляем интерфейс в основном потоке
-            self.after(100, lambda: self.display_wordcloud(wordcloud))
+            self.after(0, lambda: self.display_wordcloud(wordcloud))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка при создании облака слов: {str(e)}"
-            self.after(100, lambda: messagebox.showerror("Ошибка", error_message))
-            self.after(100, lambda: self.progress.stop())
-            self.after(100, lambda: self.generate_button.config(state=tk.NORMAL))
+            self.after(0, lambda: self.show_wordcloud_error(error_message))
     
+    def show_wordcloud_error(self, error_message):
+        """Показывает ошибку генерации облака в главном потоке Tkinter."""
+        messagebox.showerror("Ошибка", error_message)
+        self.progress.stop()
+        self.generate_button.config(state=tk.NORMAL)
+
     def display_wordcloud(self, wordcloud):
         """Отображает сгенерированное облако слов"""
+        # Сохраняем созданное облако слов
+        self.wordcloud_image = wordcloud
+
         # Останавливаем прогресс-бар
         self.progress.stop()
         
