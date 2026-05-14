@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 import threading
+from modules.platform_open import open_file
 
 class DocxConverterTab(ttk.Frame):
     def __init__(self, parent):
@@ -128,8 +129,8 @@ class DocxConverterTab(ttk.Frame):
         
         if messagebox.askyesno("Конвертация завершена", 
                                "Конвертация завершена успешно. Открыть файл?"):
-            # Открываем файл в блокноте
-            os.system(f'notepad.exe "{output_file}"')
+            # Открываем файл в программе по умолчанию
+            open_file(output_file)
     
     def update_status(self, message):
         """Обновляет текстовое поле статуса"""
