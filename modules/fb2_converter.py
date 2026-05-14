@@ -101,31 +101,30 @@ class FB2ConverterTab(ttk.Frame):
         self.progress.start()
         
         # Запускаем конвертацию в отдельном потоке
+        convert_type = self.convert_type.get()
         convert_thread = threading.Thread(
             target=self.perform_conversion,
-            args=(file_path,)
+            args=(file_path, convert_type)
         )
         convert_thread.daemon = True
         convert_thread.start()
     
-    def perform_conversion(self, file_path):
+    def perform_conversion(self, file_path, convert_type):
         """Выполняет конвертацию файла"""
         try:
-            convert_type = self.convert_type.get()
-            
             if convert_type == "txt_to_fb2":
                 output_file = self.txt_to_fb2(file_path)
             elif convert_type == "docx_to_fb2":
                 output_file = self.docx_to_fb2(file_path)
             
             # Отображаем успешное завершение
-            self.after(100, lambda: self.conversion_completed(output_file))
+            self.after(0, lambda: self.conversion_completed(output_file))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка конвертации: {str(e)}"
-            self.after(100, lambda: self.update_status(error_message))
-            self.after(100, lambda: self.progress.stop())
+            self.post_status(error_message)
+            self.after(0, lambda: self.progress.stop())
     
     def conversion_completed(self, output_file):
         """Обрабатывает завершение конвертации"""
@@ -142,17 +141,21 @@ class FB2ConverterTab(ttk.Frame):
         """Обновляет текстовое поле статуса"""
         self.status_text.insert(tk.END, message + "\n")
         self.status_text.see(tk.END)  # Прокрутка вниз
+
+    def post_status(self, message):
+        """Планирует обновление статуса в главном потоке Tkinter."""
+        self.after(0, lambda message=message: self.update_status(message))
     
     def txt_to_fb2(self, txt_file_path):
         """Конвертирует TXT файл в FB2 формат"""
-        self.update_status("Чтение текстового файла...")
+        self.post_status("Чтение текстового файла...")
         
         # Чтение текстового файла
         with open(txt_file_path, "r", encoding="utf-8") as f:
             text = f.read()
         
         # Токенизация текста
-        self.update_status("Обработка текста...")
+        self.post_status("Обработка текста...")
         tokens = nltk.word_tokenize(text)
         
         lines = []
@@ -173,7 +176,7 @@ class FB2ConverterTab(ttk.Frame):
         output_file_name = f"{file_name}_formatted.fb2"
         
         # Генерация FB2 файла через BeautifulSoup
-        self.update_status("Создание FB2 файла...")
+        self.post_status("Создание FB2 файла...")
         
         soup = BeautifulSoup(features='xml')
         soup.append(soup.new_tag("FictionBook", xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"))
@@ -212,12 +215,12 @@ class FB2ConverterTab(ttk.Frame):
         with open(output_file_name, 'w', encoding='utf-8') as file:
             file.write(str(soup))
         
-        self.update_status(f"FB2 файл сохранен как '{output_file_name}'")
+        self.post_status(f"FB2 файл сохранен как '{output_file_name}'")
         return output_file_name
     
     def docx_to_fb2(self, docx_file_path):
         """Конвертирует DOCX файл в FB2 формат"""
-        self.update_status("Чтение DOCX файла...")
+        self.post_status("Чтение DOCX файла...")
         
         try:
             from docx import Document
@@ -232,7 +235,7 @@ class FB2ConverterTab(ttk.Frame):
             # Формируем имя выходного файла
             output_file_name = f"{file_name}.fb2"
             
-            self.update_status("Создание FB2 файла...")
+            self.post_status("Создание FB2 файла...")
             
             # Открываем файл для записи в формате FB2
             with open(output_file_name, "w", encoding="utf-8") as fb2_file:
@@ -262,9 +265,9 @@ class FB2ConverterTab(ttk.Frame):
                 fb2_file.write('</body>\n')
                 fb2_file.write('</FictionBook>')
             
-            self.update_status(f"FB2 файл сохранен как '{output_file_name}'")
+            self.post_status(f"FB2 файл сохранен как '{output_file_name}'")
             return output_file_name
             
         except ImportError:
-            self.update_status("Ошибка: модуль python-docx не установлен")
+            self.post_status("Ошибка: модуль python-docx не установлен")
             raise Exception("Для конвертации DOCX файлов требуется модуль python-docx. Установите его командой: pip install python-docx")

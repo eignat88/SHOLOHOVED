@@ -100,12 +100,16 @@ class WordSearchFrame(ttk.Frame):
                             found_words.append(word)
 
             found_words = sorted(set(found_words))
-            self.after(100, lambda: self.display_search_results(found_words))
+            self.after(0, lambda: self.display_search_results(found_words))
 
         except Exception as e:
             error_message = f"Ошибка при поиске: {str(e)}"
-            self.after(100, lambda: self.result_text.delete(1.0, tk.END))
-            self.after(100, lambda: self.result_text.insert(tk.END, error_message))
+            self.after(0, lambda: self.display_search_error(error_message))
+
+    def display_search_error(self, error_message):
+        self.result_text.delete(1.0, tk.END)
+        self.result_text.insert(tk.END, error_message)
+        self.save_button.config(state="disabled")
 
     def display_search_results(self, found_words):
         self.result_text.delete(1.0, tk.END)
@@ -282,17 +286,17 @@ class ColorAnalysisFrame(ttk.Frame):
         """Выполняет анализ текста"""
         try:
             # Читаем список слов из файла
-            self.update_status("Чтение списка слов...")
+            self.post_status("Чтение списка слов...")
             with open(colors_filename, 'r', encoding='utf-8') as f:
                 colors = [line.strip() for line in f]
             
             # Читаем текстовый файл
-            self.update_status("Чтение текстового файла...")
+            self.post_status("Чтение текстового файла...")
             with open(text_filename, 'r', encoding='utf-8') as f:
                 text = f.read()
             
             # Поиск предложений с указанными словами
-            self.update_status("Поиск предложений со словами из списка...")
+            self.post_status("Поиск предложений со словами из списка...")
             sentences = text.split('.')
             sentences_with_colors = []
             
@@ -324,19 +328,19 @@ class ColorAnalysisFrame(ttk.Frame):
             output_file_name = f"{text_filename_without_ext}_{colors_filename_without_ext}.txt"
             
             # Сохраняем результаты анализа
-            self.update_status("Сохранение результатов анализа...")
+            self.post_status("Сохранение результатов анализа...")
             with open(output_file_name, 'w', encoding='utf-8') as f:
                 for sentence in tqdm(sentences_with_colors, desc='Запись в файл'):
                     f.write(sentence + '\n')
             
             # Обновляем статус в основном потоке
-            self.after(100, lambda: self.analysis_completed(output_file_name))
+            self.after(0, lambda: self.analysis_completed(output_file_name))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка при анализе: {str(e)}"
-            self.after(100, lambda: self.update_status(error_message))
-            self.after(100, lambda: self.progress.stop())
+            self.post_status(error_message)
+            self.after(0, lambda: self.progress.stop())
     
     def analysis_completed(self, output_file):
         """Обрабатывает завершение анализа"""
@@ -352,6 +356,10 @@ class ColorAnalysisFrame(ttk.Frame):
         """Обновляет текстовое поле статуса"""
         self.status_text.insert(tk.END, message + "\n")
         self.status_text.see(tk.END)  # Прокрутка вниз
+
+    def post_status(self, message):
+        """Планирует обновление статуса в главном потоке Tkinter."""
+        self.after(0, lambda message=message: self.update_status(message))
 
 
 class TextAnalyzerTab(ttk.Frame):

@@ -128,13 +128,13 @@ class TextSplitterTab(ttk.Frame):
             else:
                 pattern = custom_pattern
             
-            self.update_status(f"Использую шаблон: {pattern}")
+            self.post_status(f"Использую шаблон: {pattern}")
             
             # Словарь для хранения разделов
             sections = {}
             
             # Чтение и обработка входного файла
-            self.update_status("Чтение и обработка файла...")
+            self.post_status("Чтение и обработка файла...")
             
             with open(file_path, 'r', encoding='utf-8') as file:
                 current_section = None
@@ -159,12 +159,12 @@ class TextSplitterTab(ttk.Frame):
             
             # Если нет разделов, выводим ошибку
             if not sections:
-                self.after(100, lambda: self.update_status("Входной файл не содержит разделов по заданному шаблону!"))
-                self.after(100, lambda: self.progress.stop())
+                self.post_status("Входной файл не содержит разделов по заданному шаблону!")
+                self.after(0, lambda: self.progress.stop())
                 return
             
             # Сохраняем разделы в отдельные файлы
-            self.update_status(f"Сохранение {len(sections)} разделов в отдельные файлы...")
+            self.post_status(f"Сохранение {len(sections)} разделов в отдельные файлы...")
             
             output_dir = os.path.dirname(file_path)
             base_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -182,13 +182,13 @@ class TextSplitterTab(ttk.Frame):
                 saved_files.append(output_file)
             
             # Обновляем статус в основном потоке
-            self.after(100, lambda: self.splitting_completed(saved_files))
+            self.after(0, lambda: self.splitting_completed(saved_files))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка при разделении текста: {str(e)}"
-            self.after(100, lambda: self.update_status(error_message))
-            self.after(100, lambda: self.progress.stop())
+            self.post_status(error_message)
+            self.after(0, lambda: self.progress.stop())
     
     def splitting_completed(self, saved_files):
         """Обрабатывает завершение разделения текста"""
@@ -211,3 +211,7 @@ class TextSplitterTab(ttk.Frame):
         """Обновляет текстовое поле статуса"""
         self.status_text.insert(tk.END, message + "\n")
         self.status_text.see(tk.END)  # Прокрутка вниз
+
+    def post_status(self, message):
+        """Планирует обновление статуса в главном потоке Tkinter."""
+        self.after(0, lambda message=message: self.update_status(message))

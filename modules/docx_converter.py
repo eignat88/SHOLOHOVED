@@ -94,12 +94,12 @@ class DocxConverterTab(ttk.Frame):
             try:
                 import docx2txt
             except ImportError:
-                self.after(100, lambda: self.update_status("Ошибка: модуль docx2txt не установлен"))
-                self.after(100, lambda: self.progress.stop())
+                self.post_status("Ошибка: модуль docx2txt не установлен")
+                self.after(0, lambda: self.progress.stop())
                 raise Exception("Для конвертации DOCX файлов требуется модуль docx2txt. Установите его командой: pip install docx2txt")
             
             # Конвертируем DOCX в текст
-            self.update_status("Конвертация DOCX в текст...")
+            self.post_status("Конвертация DOCX в текст...")
             text = docx2txt.process(file_path)
             
             # Получаем имя файла без расширения
@@ -113,13 +113,13 @@ class DocxConverterTab(ttk.Frame):
                 file.write(text)
             
             # Отображаем успешное завершение
-            self.after(100, lambda: self.conversion_completed(output_file_name))
+            self.after(0, lambda: self.conversion_completed(output_file_name))
             
         except Exception as e:
             # Обрабатываем ошибки
             error_message = f"Ошибка конвертации: {str(e)}"
-            self.after(100, lambda: self.update_status(error_message))
-            self.after(100, lambda: self.progress.stop())
+            self.post_status(error_message)
+            self.after(0, lambda: self.progress.stop())
     
     def conversion_completed(self, output_file):
         """Обрабатывает завершение конвертации"""
@@ -135,3 +135,7 @@ class DocxConverterTab(ttk.Frame):
         """Обновляет текстовое поле статуса"""
         self.status_text.insert(tk.END, message + "\n")
         self.status_text.see(tk.END)  # Прокрутка вниз
+
+    def post_status(self, message):
+        """Планирует обновление статуса в главном потоке Tkinter."""
+        self.after(0, lambda message=message: self.update_status(message))
